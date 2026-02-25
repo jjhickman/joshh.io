@@ -1,0 +1,160 @@
+@import "tailwindcss";
+
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-background-dark: #111217;
+  --color-background-dark-secondary: #1a1c24;
+  --color-background-light: #f8f8fb;
+  --color-background-light-secondary: #ffffff;
+
+  --color-accent: #9f7cff;
+  --color-accent-light: #cbb8ff;
+  --color-accent-dark: #7344ff;
+  --color-accent-50: #f5f1ff;
+  --color-accent-100: #ece4ff;
+  --color-accent-200: #ddceff;
+  --color-accent-300: #ccb3ff;
+  --color-accent-400: #b995ff;
+  --color-accent-500: #9f7cff;
+  --color-accent-600: #8758ff;
+  --color-accent-700: #7344ff;
+  --color-accent-800: #5d34d8;
+  --color-accent-900: #4629a1;
+
+  --color-lavender-100: #ece5ff;
+  --color-lavender-900: #2c1d59;
+  --color-amber-soft: #ffd8a0;
+  --color-amber-strong: #f3b65d;
+
+  --color-text-dark: #f5f6fb;
+  --color-text-dark-muted: #bcc0cf;
+  --color-text-light: #1a1c24;
+  --color-text-light-muted: #5a6072;
+
+  --font-sans: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
+  --font-display: "Syne", "Avenir Next", "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", "JetBrains Mono", "Fira Code", monospace;
+
+  --max-w-prose: 720px;
+  --max-w-content: 1200px;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply min-h-screen transition-colors duration-300;
+    background-color: var(--color-background-light);
+    background-image:
+      radial-gradient(
+        circle at 12% 0%,
+        rgba(159, 124, 255, 0.24) 0%,
+        transparent 36%
+      ),
+      radial-gradient(
+        circle at 88% 84%,
+        rgba(255, 216, 160, 0.32) 0%,
+        transparent 42%
+      ),
+      linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.95) 0%,
+        rgba(248, 248, 251, 0.96) 100%
+      );
+  }
+
+  .dark body {
+    background-color: var(--color-background-dark);
+    background-image:
+      radial-gradient(
+        circle at 10% 4%,
+        rgba(115, 68, 255, 0.22) 0%,
+        transparent 40%
+      ),
+      radial-gradient(
+        circle at 86% 78%,
+        rgba(243, 182, 93, 0.22) 0%,
+        transparent 38%
+      ),
+      linear-gradient(
+        180deg,
+        rgba(17, 18, 23, 0.98) 0%,
+        rgba(17, 18, 23, 1) 100%
+      );
+  }
+
+  ::selection {
+    @apply bg-accent/35 text-white;
+  }
+}
+
+@layer components {
+  .lab-preview-glow {
+    animation: labGlow 9s ease-in-out infinite;
+  }
+
+  @keyframes labGlow {
+    0%,
+    100% {
+      transform: translateY(0);
+      filter: saturate(100%);
+    }
+    50% {
+      transform: translateY(-2px);
+      filter: saturate(114%);
+    }
+  }
+
+  .hero-surface {
+    @apply border border-accent/20 bg-white/80 dark:border-accent/25 dark:bg-background-dark-secondary/78;
+    backdrop-filter: blur(10px);
+    background-image: linear-gradient(
+      125deg,
+      rgba(255, 255, 255, 0.82) 0%,
+      rgba(246, 241, 255, 0.78) 48%,
+      rgba(255, 242, 221, 0.72) 100%
+    );
+  }
+
+  .dark .hero-surface {
+    background-image: linear-gradient(
+      125deg,
+      rgba(26, 28, 36, 0.96) 0%,
+      rgba(44, 29, 89, 0.22) 52%,
+      rgba(59, 45, 26, 0.2) 100%
+    );
+  }
+
+  .rhythm-grid {
+    background-image:
+      linear-gradient(rgba(115, 68, 255, 0.1) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(115, 68, 255, 0.1) 1px, transparent 1px);
+    background-size: 34px 34px;
+    mask-image: radial-gradient(circle at 52% 44%, black 24%, transparent 92%);
+  }
+
+  .prose-custom {
+    @apply prose prose-neutral dark:prose-invert max-w-prose mx-auto;
+  }
+
+  .prose-custom code {
+    @apply font-mono text-sm bg-neutral-100 dark:bg-neutral-800 px-1.5 py-0.5 rounded;
+  }
+
+  .prose-custom pre {
+    @apply bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800;
+  }
+
+  .prose-custom a {
+    @apply text-accent hover:text-amber-strong dark:hover:text-accent-light transition-colors no-underline hover:underline;
+  }
+}

@@ -1,0 +1,12 @@
+title = "joshh.io gitleaks configuration"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Allow obvious fake placeholder values in docs/tests"
+regexes = [
+  '''(?i)test[_-]?key[_a-z0-9-]*''',
+  '''(?i)example[_-]?(token|key|secret)''',
+  '''(?i)dummy[_-]?(token|key|secret)'''
+]
