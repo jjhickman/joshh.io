@@ -154,6 +154,7 @@ If gitleaks flags findings:
 
 ### Never Do
 
+- Do not modify `AGENTS.md` unless explicitly approved.
 - Never push directly to `main`
 - Never commit secrets, tokens, API keys, credentials, or private files
 - Never bypass secret scanning or pre-commit checks
