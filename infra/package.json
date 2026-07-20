@@ -1,0 +1,32 @@
+{
+  "name": "joshh-io-infra",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint . --max-warnings 0",
+    "test": "vitest run",
+    "check": "npm run typecheck && npm run lint && npm run test",
+    "cdk:synth": "AWS_CONFIG_FILE=/dev/null AWS_SHARED_CREDENTIALS_FILE=/dev/null AWS_EC2_METADATA_DISABLED=true JOSHH_IO_CDK_CONTEXT=synth CDK_DEFAULT_ACCOUNT=${CDK_DEFAULT_ACCOUNT:-111111111111} cdk synth",
+    "cdk:deploy": "JOSHH_IO_CDK_CONTEXT=deploy cdk deploy"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.261.0",
+    "constructs": "^10.7.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.35.0",
+    "@types/node": "^20.19.14",
+    "aws-cdk": "^2.1132.0",
+    "eslint": "^9.35.0",
+    "tsx": "^4.23.1",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.42.0",
+    "vitest": "^4.1.10"
+  }
+}

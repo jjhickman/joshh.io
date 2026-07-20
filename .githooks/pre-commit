@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+
+staged_files=$(git diff --cached --name-only --diff-filter=ACMR)
+if [ -z "$staged_files" ]; then
+  exit 0
+fi
+
+gitleaks protect --staged --config .gitleaks.toml --no-banner --redact
+lint_files=$(printf '%s\n' "$staged_files" | sed -n '/\.[cm]*[jt]sx*$/p')
+if [ -n "$lint_files" ]; then
+  printf '%s\n' "$lint_files" | xargs npm exec -- eslint --max-warnings 0
+fi

@@ -39,7 +39,13 @@ build/Release
 
 # Dependency directories
 node_modules/
+dist/
+.DS_Store
 jspm_packages/
+.codex-home/
+.npm/
+infra/cdk.out/
+infra/node_modules/
 
 # Snowpack dependency directory (https://snowpack.dev/)
 web_modules/

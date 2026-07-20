@@ -1,0 +1,13 @@
+title = "joshh.io secret scanning"
+
+[extend]
+useDefault = true
+
+[allowlist]
+paths = [
+  '''^\.codex-home/''',
+  '''^\.npm/''',
+  '''^infra/cdk\.out/''',
+  '''^infra/node_modules/''',
+  '''^node_modules/'''
+]

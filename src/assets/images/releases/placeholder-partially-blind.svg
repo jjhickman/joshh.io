@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1200" viewBox="0 0 1200 1200">
+  <defs><linearGradient id="a" y2="1"><stop stop-color="#081018"/><stop offset="1" stop-color="#181020"/></linearGradient><filter id="g"><feTurbulence baseFrequency=".6" numOctaves="3" seed="4"/><feColorMatrix values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 .13 0"/></filter></defs>
+  <rect width="1200" height="1200" fill="url(#a)"/><path d="M0 310h1200L910 700 0 880z" fill="#5bd1d7" opacity=".14"/><path d="M0 610h1200" stroke="#bcecee" stroke-opacity=".26" stroke-width="2"/><rect width="1200" height="1200" filter="url(#g)"/><text x="72" y="1070" fill="#e6f3f1" font-family="serif" font-size="65" letter-spacing="7">PARTIALLY BLIND</text>
+</svg>

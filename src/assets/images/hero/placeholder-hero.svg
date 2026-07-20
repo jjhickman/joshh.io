@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1200" viewBox="0 0 1920 1200">
+  <defs>
+    <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#05080e"/><stop offset=".55" stop-color="#101726"/><stop offset="1" stop-color="#071318"/></linearGradient>
+    <radialGradient id="glow"><stop stop-color="#54d9df" stop-opacity=".36"/><stop offset="1" stop-color="#54d9df" stop-opacity="0"/></radialGradient>
+    <filter id="grain"><feTurbulence baseFrequency=".72" numOctaves="3" seed="8"/><feColorMatrix values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 .09 0"/></filter>
+    <filter id="blur"><feGaussianBlur stdDeviation="34"/></filter>
+  </defs>
+  <rect width="1920" height="1200" fill="url(#bg)"/>
+  <ellipse cx="1400" cy="480" rx="560" ry="520" fill="url(#glow)" filter="url(#blur)"/>
+  <path d="M1140 1090c40-250 128-463 290-524 108-40 230 22 283 135 50 106 46 240 87 389z" fill="#03060a"/>
+  <path d="M1300 724c103-43 250-19 319 73" fill="none" stroke="#a3eff1" stroke-opacity=".18" stroke-width="16"/>
+  <path d="M1455 642l212 398" stroke="#9eeff1" stroke-opacity=".21" stroke-width="10"/>
+  <rect width="1920" height="1200" filter="url(#grain)" opacity=".7"/>
+</svg>
