@@ -116,18 +116,10 @@ export class SiteStack extends cdk.Stack {
       "public, max-age=31536000, immutable",
     );
 
-    const noCachePolicy = new cloudfront.CachePolicy(this, "DefaultCachePolicy", {
-      cachePolicyName: "joshh-io-default-no-cache",
-      comment: "Always revalidate HTML, stable public files, and SPA fallbacks.",
-      defaultTtl: cdk.Duration.seconds(0),
-      minTtl: cdk.Duration.seconds(0),
-      maxTtl: cdk.Duration.seconds(0),
-      cookieBehavior: cloudfront.CacheCookieBehavior.none(),
-      headerBehavior: cloudfront.CacheHeaderBehavior.none(),
-      queryStringBehavior: cloudfront.CacheQueryStringBehavior.none(),
-      enableAcceptEncodingBrotli: true,
-      enableAcceptEncodingGzip: true,
-    });
+    // CloudFront rejects a policy that both disables caching (all TTLs zero)
+    // and sets EnableAcceptEncoding*; the managed CACHING_DISABLED policy is
+    // the supported way to always revalidate HTML and SPA fallbacks.
+    const noCachePolicy = cloudfront.CachePolicy.CACHING_DISABLED;
     const assetCachePolicy = new cloudfront.CachePolicy(this, "AssetCachePolicy", {
       cachePolicyName: "joshh-io-assets-immutable",
       comment: "Cache Vite content-hashed assets for one year.",

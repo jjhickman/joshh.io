@@ -45,7 +45,12 @@ const explicitConfig = {
   githubRepository: "joshh.io",
   deployBranch: "main",
   githubEnvironment: "production",
-  githubOidcProvider: "create",
+  // Recorded during bootstrap 2026-07-19: account 580028686392 already has the
+  // GitHub OIDC provider, so JoshhIo-Ci imports it (IAM allows one per issuer).
+  githubOidcProvider: {
+    importArn:
+      "arn:aws:iam::580028686392:oidc-provider/token.actions.githubusercontent.com",
+  },
 } as const satisfies Omit<InfraConfig, "account">;
 
 export function getInfraConfig(overrides: InfraConfigOverrides = {}): InfraConfig {
