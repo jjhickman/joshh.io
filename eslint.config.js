@@ -4,7 +4,8 @@ import reactHooks from "eslint-plugin-react-hooks";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: [".codex-home", ".npm", "dist", "infra/cdk.out", "node_modules"] },
+  // The infra package lints itself with its own config and dependencies.
+  { ignores: [".codex-home", ".npm", "dist", "infra", "node_modules"] },
   js.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked.map((config) => ({
     ...config,
