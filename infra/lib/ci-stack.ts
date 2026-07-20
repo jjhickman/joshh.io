@@ -9,27 +9,43 @@ export interface CiStackProps extends cdk.StackProps {
 
 const GITHUB_OIDC_ISSUER = "token.actions.githubusercontent.com";
 
+// Deployed once from a trusted local session, never from CI — the trust it
+// creates is what CI runs on, so CI must not be able to rewrite it.
 export class CiStack extends cdk.Stack {
   public constructor(scope: Construct, id: string, props: CiStackProps) {
     super(scope, id, props);
-
     const { config } = props;
-    const provider = config.githubOidcProvider === "create"
-      ? new iam.OidcProviderNative(this, "GithubOidcProvider", {
-          url: `https://${GITHUB_OIDC_ISSUER}`,
-          clientIds: ["sts.amazonaws.com"],
-          removalPolicy: cdk.RemovalPolicy.RETAIN,
-        })
-      : iam.OidcProviderNative.fromOidcProviderArn(
-          this,
-          "GithubOidcProvider",
-          config.githubOidcProvider.importArn,
-        );
 
-    const subject = `repo:${config.githubOwner}/${config.githubRepository}:environment:${config.githubEnvironment}`;
+    // IAM permits one provider per issuer URL per account; whether this
+    // account already has it is recorded in config during bootstrap, so
+    // synthesis never needs an AWS lookup.
+    const provider =
+      config.githubOidcProvider === "create"
+        ? new iam.OidcProviderNative(this, "GithubOidcProvider", {
+            url: `https://${GITHUB_OIDC_ISSUER}`,
+            clientIds: ["sts.amazonaws.com"],
+            removalPolicy: cdk.RemovalPolicy.RETAIN,
+          })
+        : iam.OidcProviderNative.fromOidcProviderArn(
+            this,
+            "GithubOidcProvider",
+            config.githubOidcProvider.importArn,
+          );
+
+    // The subject uses the environment form because the deploy job declares
+    // `environment: production`; GitHub's branch policy on that environment
+    // supplies the main-only gate. No branch, tag, PR, or wildcard subjects.
+    const subject = [
+      "repo",
+      `${config.githubOwner}/${config.githubRepository}`,
+      "environment",
+      config.githubEnvironment,
+    ].join(":");
+
     const deployRole = new iam.Role(this, "GithubDeployRole", {
       roleName: "joshh-io-github-deploy",
-      description: "Allows the joshh.io production GitHub environment to assume CDK bootstrap roles.",
+      description:
+        "Lets the joshh.io GitHub production environment assume the CDK bootstrap roles.",
       assumedBy: new iam.OpenIdConnectPrincipal(provider, {
         StringEquals: {
           [`${GITHUB_OIDC_ISSUER}:aud`]: "sts.amazonaws.com",
@@ -39,16 +55,22 @@ export class CiStack extends cdk.Stack {
       maxSessionDuration: cdk.Duration.hours(1),
     });
 
-    deployRole.addToPolicy(new iam.PolicyStatement({
-      sid: "AssumeCdkBootstrapRoles",
-      actions: ["sts:AssumeRole"],
-      resources: [
-        `arn:${cdk.Aws.PARTITION}:iam::${config.account}:role/cdk-*-deploy-role-${config.account}-${config.region}`,
-        `arn:${cdk.Aws.PARTITION}:iam::${config.account}:role/cdk-*-file-publishing-role-${config.account}-${config.region}`,
-        `arn:${cdk.Aws.PARTITION}:iam::${config.account}:role/cdk-*-image-publishing-role-${config.account}-${config.region}`,
-        `arn:${cdk.Aws.PARTITION}:iam::${config.account}:role/cdk-*-lookup-role-${config.account}-${config.region}`,
-      ],
-    }));
+    // The role holds no service permissions of its own — everything flows
+    // through the account's CDK bootstrap roles, scoped to this region.
+    const bootstrapRole = (purpose: string): string =>
+      `arn:${cdk.Aws.PARTITION}:iam::${config.account}:role/cdk-*-${purpose}-${config.account}-${config.region}`;
+    deployRole.addToPolicy(
+      new iam.PolicyStatement({
+        sid: "AssumeCdkBootstrapRoles",
+        actions: ["sts:AssumeRole"],
+        resources: [
+          bootstrapRole("deploy-role"),
+          bootstrapRole("file-publishing-role"),
+          bootstrapRole("image-publishing-role"),
+          bootstrapRole("lookup-role"),
+        ],
+      }),
+    );
 
     cdk.Tags.of(this).add("app", "joshh.io");
     cdk.Tags.of(this).add("env", "production");
@@ -56,7 +78,7 @@ export class CiStack extends cdk.Stack {
     cdk.Tags.of(this).add("managed-by", "aws-cdk");
 
     new cdk.CfnOutput(this, "GithubDeployRoleArn", {
-      description: "Set this ARN as the production environment variable AWS_DEPLOY_ROLE_ARN.",
+      description: "Set as the production environment variable AWS_DEPLOY_ROLE_ARN.",
       value: deployRole.roleArn,
     });
   }

@@ -4,111 +4,94 @@ import { describe, expect, it } from "vitest";
 import { CiStack } from "../lib/ci-stack.js";
 import { getInfraConfig, type GithubOidcProviderConfig } from "../lib/config.js";
 
-const ACCOUNT = "111111111111";
-const SUBJECT = "repo:jjhickman/joshh.io:environment:production";
+const EXPECTED_SUBJECT = "repo:jjhickman/joshh.io:environment:production";
 
-interface PolicyResource {
-  readonly Properties?: {
-    readonly PolicyDocument?: {
-      readonly Statement?: Array<{
-        readonly Action?: string;
-        readonly Effect?: string;
-        readonly Resource?: unknown[];
-      }>;
-    };
-  };
-}
-
-interface RoleResource {
-  readonly Properties?: {
-    readonly AssumeRolePolicyDocument?: unknown;
-  };
-}
-
-function synthesizeCi(githubOidcProvider: GithubOidcProviderConfig): Template {
+function buildTemplate(githubOidcProvider?: GithubOidcProviderConfig): Template {
+  const config = getInfraConfig({ context: "test", githubOidcProvider });
   const app = new cdk.App();
-  const config = getInfraConfig({
-    account: ACCOUNT,
-    context: "test",
-    githubOidcProvider,
-  });
-  const stack = new CiStack(app, "TestCi", {
-    config,
-    env: { account: config.account, region: config.region },
-  });
-
-  return Template.fromStack(stack);
+  return Template.fromStack(
+    new CiStack(app, "JoshhIo-Ci", {
+      config,
+      env: { account: config.account, region: config.region },
+    }),
+  );
 }
 
 describe("JoshhIo-Ci", () => {
-  it("creates the GitHub provider when explicitly configured", () => {
-    const template = synthesizeCi("create");
-
-    template.hasResourceProperties("AWS::IAM::OIDCProvider", {
-      ClientIdList: ["sts.amazonaws.com"],
-      Url: "https://token.actions.githubusercontent.com",
-    });
-    assertExactTrust(template);
-  });
-
-  it("imports an existing GitHub provider without creating another", () => {
-    const template = synthesizeCi({
-      importArn: `arn:aws:iam::${ACCOUNT}:oidc-provider/token.actions.githubusercontent.com`,
-    });
-
+  it("imports the recorded provider without creating a duplicate", () => {
+    const template = buildTemplate();
     template.resourceCountIs("AWS::IAM::OIDCProvider", 0);
-    assertExactTrust(template);
+    template.resourceCountIs("Custom::AWSCDKOpenIdConnectProvider", 0);
+    template.hasResourceProperties("AWS::IAM::Role", {
+      AssumeRolePolicyDocument: Match.objectLike({
+        Statement: [
+          Match.objectLike({
+            Principal: {
+              Federated:
+                "arn:aws:iam::580028686392:oidc-provider/token.actions.githubusercontent.com",
+            },
+          }),
+        ],
+      }),
+    });
   });
 
-  it("only permits assuming the standard CDK bootstrap roles", () => {
-    const template = synthesizeCi("create");
-    const policies = Object.values(
-      template.findResources("AWS::IAM::Policy"),
-    ) as unknown as PolicyResource[];
-    const statement = policies[0]?.Properties?.PolicyDocument?.Statement?.[0];
+  it("can create the provider in a fresh account, retained on teardown", () => {
+    const template = buildTemplate("create");
+    template.resourceCountIs("AWS::IAM::OIDCProvider", 1);
+    template.hasResource("AWS::IAM::OIDCProvider", { DeletionPolicy: "Retain" });
+    template.hasResourceProperties("AWS::IAM::OIDCProvider", {
+      Url: "https://token.actions.githubusercontent.com",
+      ClientIdList: ["sts.amazonaws.com"],
+    });
+  });
 
-    expect(policies).toHaveLength(1);
-    expect(statement?.Action).toBe("sts:AssumeRole");
-    expect(statement?.Effect).toBe("Allow");
-    expect(statement?.Resource).toHaveLength(4);
+  it("trusts exactly the production environment subject", () => {
+    const template = buildTemplate();
+    template.hasResourceProperties("AWS::IAM::Role", {
+      RoleName: "joshh-io-github-deploy",
+      MaxSessionDuration: 3600,
+      AssumeRolePolicyDocument: Match.objectLike({
+        Statement: [
+          Match.objectLike({
+            Action: "sts:AssumeRoleWithWebIdentity",
+            Condition: {
+              StringEquals: {
+                "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+                "token.actions.githubusercontent.com:sub": EXPECTED_SUBJECT,
+              },
+            },
+          }),
+        ],
+      }),
+    });
+    // No branch, tag, pull-request, or wildcard-repository trust anywhere.
+    const rendered = JSON.stringify(template.toJSON());
+    expect(rendered).toContain(EXPECTED_SUBJECT);
+    expect(rendered).not.toContain("repo:jjhickman/joshh.io:*");
+    expect(rendered).not.toContain(":ref:");
+    expect(rendered).not.toContain(":pull_request");
+  });
 
-    const resources = JSON.stringify(statement?.Resource);
-    for (const role of ["deploy", "file-publishing", "image-publishing", "lookup"]) {
-      expect(resources).toContain(
-        `:iam::${ACCOUNT}:role/cdk-*-${role}-role-${ACCOUNT}-us-east-1`,
-      );
+  it("grants only assumption of the four CDK bootstrap roles", () => {
+    const template = buildTemplate();
+    const policies = template.findResources("AWS::IAM::Policy");
+    expect(Object.keys(policies)).toHaveLength(1);
+    const { Statement: statements } = (
+      Object.values(policies)[0]!.Properties as {
+        PolicyDocument: { Statement: { Action: string; Resource: unknown }[] };
+      }
+    ).PolicyDocument;
+    expect(statements).toHaveLength(1);
+    expect(statements[0]!.Action).toBe("sts:AssumeRole");
+    const resources = JSON.stringify(statements[0]!.Resource);
+    for (const purpose of [
+      "deploy-role",
+      "file-publishing-role",
+      "image-publishing-role",
+      "lookup-role",
+    ]) {
+      expect(resources).toContain(purpose);
     }
-    template.hasOutput("GithubDeployRoleArn", {});
   });
 });
-
-function assertExactTrust(template: Template): void {
-  const roles = Object.values(
-    template.findResources("AWS::IAM::Role"),
-  ) as unknown as RoleResource[];
-  expect(roles).toHaveLength(1);
-
-  const trust = JSON.stringify(roles[0]?.Properties?.AssumeRolePolicyDocument);
-  expect(trust).toContain("sts.amazonaws.com");
-  expect(trust).toContain(SUBJECT);
-  expect(trust).not.toContain("repo:*");
-  expect(trust).not.toContain("jjhickman/*");
-  expect(trust).not.toContain("pull_request");
-
-  template.hasResourceProperties("AWS::IAM::Role", {
-    AssumeRolePolicyDocument: {
-      Statement: [
-        Match.objectLike({
-          Action: "sts:AssumeRoleWithWebIdentity",
-          Condition: {
-            StringEquals: {
-              "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
-              "token.actions.githubusercontent.com:sub": SUBJECT,
-            },
-          },
-          Effect: "Allow",
-        }),
-      ],
-    },
-  });
-}

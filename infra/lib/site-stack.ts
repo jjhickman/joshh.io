@@ -16,6 +16,10 @@ export interface SiteStackProps extends cdk.StackProps {
   readonly config: InfraConfig;
 }
 
+// One launch-reviewed policy string, shared by every behavior. The only
+// third-party origins the site may frame are the two embed players; the site
+// itself may never be framed. No inline styles or scripts exist, so both
+// stay 'self'-only (docs/PLAN.md records this as a deliberate decision).
 const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
   "base-uri 'self'",
@@ -31,6 +35,8 @@ const CONTENT_SECURITY_POLICY = [
   "upgrade-insecure-requests",
 ].join("; ");
 
+// Deny every sensor/media capability; nothing on the site uses them, and the
+// embeds run in cross-origin iframes with their own permissions.
 const PERMISSIONS_POLICY = [
   "accelerometer=()",
   "ambient-light-sensor=()",
@@ -43,30 +49,31 @@ const PERMISSIONS_POLICY = [
   "usb=()",
 ].join(", ");
 
-const redirectFunctionCode = (domain: string, wwwDomain: string): string => `
+// CloudFront Functions runtime (cloudfront-js-2.0): the querystring arrives
+// parsed and decoded, so serialize it back with encodeURIComponent, keeping
+// duplicate keys intact via multiValue.
+const wwwRedirectCode = (apex: string, www: string): string => `
 function handler(event) {
   var request = event.request;
   var host = request.headers.host && request.headers.host.value;
-
-  if (host !== "${wwwDomain}") {
+  if (host !== "${www}") {
     return request;
   }
-
   var parts = [];
-  var querystring = request.querystring || {};
-  Object.keys(querystring).forEach(function (key) {
-    var parameter = querystring[key];
-    var values = parameter.multiValue || [parameter];
-    values.forEach(function (entry) {
-      parts.push(encodeURIComponent(key) + "=" + encodeURIComponent(entry.value));
-    });
-  });
-
+  for (var key in request.querystring) {
+    var entry = request.querystring[key];
+    var values = entry.multiValue || [entry];
+    for (var i = 0; i < values.length; i++) {
+      parts.push(encodeURIComponent(key) + "=" + encodeURIComponent(values[i].value));
+    }
+  }
   return {
     statusCode: 301,
     statusDescription: "Moved Permanently",
     headers: {
-      location: { value: "https://${domain}" + request.uri + (parts.length ? "?" + parts.join("&") : "") },
+      location: {
+        value: "https://${apex}" + request.uri + (parts.length ? "?" + parts.join("&") : ""),
+      },
     },
   };
 }
@@ -75,16 +82,20 @@ function handler(event) {
 export class SiteStack extends cdk.Stack {
   public constructor(scope: Construct, id: string, props: SiteStackProps) {
     super(scope, id, props);
-
     const { config } = props;
-    const wwwDomain = `www.${config.domain}`;
+    const apexDomain = config.domain;
+    const wwwDomain = `www.${apexDomain}`;
+
     const hostedZone = route53.HostedZone.fromHostedZoneAttributes(this, "HostedZone", {
       hostedZoneId: config.hostedZoneId,
-      zoneName: config.domain,
+      zoneName: apexDomain,
     });
 
+    // CloudFront requires the certificate in us-east-1; the whole stack is
+    // pinned there by config, and a test asserts it. Retained so a stack
+    // teardown can never strand the domain without a valid certificate.
     const certificate = new acm.Certificate(this, "Certificate", {
-      domainName: config.domain,
+      domainName: apexDomain,
       subjectAlternativeNames: [wwwDomain],
       validation: acm.CertificateValidation.fromDns(hostedZone),
     });
@@ -94,38 +105,37 @@ export class SiteStack extends cdk.Stack {
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       encryption: s3.BucketEncryption.S3_MANAGED,
       enforceSSL: true,
-      publicReadAccess: false,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
 
-    const redirectFunction = new cloudfront.Function(this, "WwwRedirectFunction", {
-      code: cloudfront.FunctionCode.fromInline(redirectFunctionCode(config.domain, wwwDomain)),
-      comment: "Permanently redirect www.joshh.io to the canonical apex host.",
+    // Serving www directly would split the canonical origin; every behavior
+    // gets this viewer-request function so no path (HTML or hashed asset)
+    // responds on the www host without redirecting.
+    const wwwRedirect = new cloudfront.Function(this, "WwwRedirectFunction", {
+      code: cloudfront.FunctionCode.fromInline(wwwRedirectCode(apexDomain, wwwDomain)),
+      comment: `Redirect ${wwwDomain} permanently to ${apexDomain}, keeping path and query.`,
       runtime: cloudfront.FunctionRuntime.JS_2_0,
     });
-    const functionAssociations: cloudfront.FunctionAssociation[] = [{
-      eventType: cloudfront.FunctionEventType.VIEWER_REQUEST,
-      function: redirectFunction,
-    }];
 
-    const defaultHeaders = this.createResponseHeadersPolicy(
+    const htmlHeaders = this.responseHeaders(
       "DefaultResponseHeaders",
       "no-cache, no-store, must-revalidate",
     );
-    const assetHeaders = this.createResponseHeadersPolicy(
+    const assetHeaders = this.responseHeaders(
       "AssetResponseHeaders",
       "public, max-age=31536000, immutable",
     );
 
-    // CloudFront rejects a policy that both disables caching (all TTLs zero)
-    // and sets EnableAcceptEncoding*; the managed CACHING_DISABLED policy is
-    // the supported way to always revalidate HTML and SPA fallbacks.
-    const noCachePolicy = cloudfront.CachePolicy.CACHING_DISABLED;
+    // index.html and stable public files must always revalidate so a deploy
+    // can never strand clients on an old asset graph. A custom zero-TTL
+    // policy cannot also enable Accept-Encoding normalization (CloudFront
+    // rejects the combination), so the managed disabled policy is used.
+    const htmlCachePolicy = cloudfront.CachePolicy.CACHING_DISABLED;
     const assetCachePolicy = new cloudfront.CachePolicy(this, "AssetCachePolicy", {
       cachePolicyName: "joshh-io-assets-immutable",
-      comment: "Cache Vite content-hashed assets for one year.",
-      defaultTtl: cdk.Duration.days(365),
+      comment: "Vite content-hashed assets are immutable for a year.",
       minTtl: cdk.Duration.days(365),
+      defaultTtl: cdk.Duration.days(365),
       maxTtl: cdk.Duration.days(365),
       cookieBehavior: cloudfront.CacheCookieBehavior.none(),
       headerBehavior: cloudfront.CacheHeaderBehavior.none(),
@@ -135,36 +145,39 @@ export class SiteStack extends cdk.Stack {
     });
 
     const origin = origins.S3BucketOrigin.withOriginAccessControl(siteBucket);
+    const behavior = (
+      cachePolicy: cloudfront.ICachePolicy,
+      responseHeadersPolicy: cloudfront.IResponseHeadersPolicy,
+    ): cloudfront.BehaviorOptions => ({
+      origin,
+      allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD,
+      cachedMethods: cloudfront.CachedMethods.CACHE_GET_HEAD,
+      cachePolicy,
+      compress: true,
+      functionAssociations: [
+        { eventType: cloudfront.FunctionEventType.VIEWER_REQUEST, function: wwwRedirect },
+      ],
+      responseHeadersPolicy,
+      viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+    });
+
     const distribution = new cloudfront.Distribution(this, "Distribution", {
       certificate,
-      domainNames: [config.domain, wwwDomain],
+      domainNames: [apexDomain, wwwDomain],
       defaultRootObject: "index.html",
       enableIpv6: true,
       httpVersion: cloudfront.HttpVersion.HTTP2_AND_3,
       minimumProtocolVersion: cloudfront.SecurityPolicyProtocol.TLS_V1_2_2021,
+      // North America + Europe covers the audience; widen deliberately, not
+      // by default (docs/PLAN.md section 9).
       priceClass: cloudfront.PriceClass.PRICE_CLASS_100,
-      defaultBehavior: {
-        origin,
-        allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD,
-        cachedMethods: cloudfront.CachedMethods.CACHE_GET_HEAD,
-        cachePolicy: noCachePolicy,
-        compress: true,
-        functionAssociations,
-        responseHeadersPolicy: defaultHeaders,
-        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-      },
+      defaultBehavior: behavior(htmlCachePolicy, htmlHeaders),
       additionalBehaviors: {
-        "/assets/*": {
-          origin,
-          allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD,
-          cachedMethods: cloudfront.CachedMethods.CACHE_GET_HEAD,
-          cachePolicy: assetCachePolicy,
-          compress: true,
-          functionAssociations,
-          responseHeadersPolicy: assetHeaders,
-          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-        },
+        "/assets/*": behavior(assetCachePolicy, assetHeaders),
       },
+      // Direct deep links hit S3 misses (403/404); serve the SPA shell with
+      // zero error caching so recovery after a bad deploy is immediate. The
+      // client renders its own not-found state.
       errorResponses: [403, 404].map((httpStatus) => ({
         httpStatus,
         responseHttpStatus: 200,
@@ -173,23 +186,32 @@ export class SiteStack extends cdk.Stack {
       })),
     });
 
-    for (const [idSuffix, recordName] of [["Apex", config.domain], ["Www", wwwDomain]] as const) {
-      new route53.ARecord(this, `${idSuffix}AliasA`, {
+    const aliasTarget = route53.RecordTarget.fromAlias(
+      new targets.CloudFrontTarget(distribution),
+    );
+    for (const [prefix, recordName] of [
+      ["Apex", apexDomain],
+      ["Www", wwwDomain],
+    ] as const) {
+      new route53.ARecord(this, `${prefix}AliasA`, {
         recordName,
-        target: route53.RecordTarget.fromAlias(new targets.CloudFrontTarget(distribution)),
+        target: aliasTarget,
         zone: hostedZone,
       });
-      new route53.AaaaRecord(this, `${idSuffix}AliasAaaa`, {
+      new route53.AaaaRecord(this, `${prefix}AliasAaaa`, {
         recordName,
-        target: route53.RecordTarget.fromAlias(new targets.CloudFrontTarget(distribution)),
+        target: aliasTarget,
         zone: hostedZone,
       });
     }
 
-    // Synth and tests must not require a frontend build; a real deploy must.
+    // Synthesis and tests run before any frontend build exists (CI checks,
+    // PR synth), so they deploy a placeholder marker instead of requiring
+    // dist/. A real deployment without a build is an error, never a silent
+    // empty site.
     const distDir = fileURLToPath(new URL("../../dist", import.meta.url));
     const hasDist = existsSync(distDir);
-    if (props.config.context === "deploy" && !hasDist) {
+    if (config.context === "deploy" && !hasDist) {
       throw new Error("dist/ not found — run the frontend build before deploying JoshhIo-Site");
     }
     new s3deploy.BucketDeployment(this, "DeploySite", {
@@ -204,6 +226,8 @@ export class SiteStack extends cdk.Stack {
       prune: true,
     });
 
+    // 5xx only: SPA deep links intentionally 403/404 at the origin before
+    // the fallback, so a 4xx alarm would be pure noise.
     new cloudwatch.Alarm(this, "Distribution5xxAlarm", {
       alarmName: "joshh-io-cloudfront-5xx-rate",
       alarmDescription: "CloudFront returned an elevated rate of 5xx responses.",
@@ -222,7 +246,7 @@ export class SiteStack extends cdk.Stack {
     cdk.Tags.of(this).add("repo", `${config.githubOwner}/${config.githubRepository}`);
     cdk.Tags.of(this).add("managed-by", "aws-cdk");
 
-    new cdk.CfnOutput(this, "CanonicalUrl", { value: `https://${config.domain}` });
+    new cdk.CfnOutput(this, "CanonicalUrl", { value: `https://${apexDomain}` });
     new cdk.CfnOutput(this, "SiteBucketName", { value: siteBucket.bucketName });
     new cdk.CfnOutput(this, "DistributionId", { value: distribution.distributionId });
     new cdk.CfnOutput(this, "DistributionDomainName", {
@@ -231,10 +255,10 @@ export class SiteStack extends cdk.Stack {
     new cdk.CfnOutput(this, "CertificateArn", { value: certificate.certificateArn });
   }
 
-  private createResponseHeadersPolicy(
-    id: string,
-    cacheControl: string,
-  ): cloudfront.ResponseHeadersPolicy {
+  // Both behaviors share the identical security posture; only Cache-Control
+  // differs, because CloudFront cannot vary a single policy's headers per
+  // behavior.
+  private responseHeaders(id: string, cacheControl: string): cloudfront.ResponseHeadersPolicy {
     return new cloudfront.ResponseHeadersPolicy(this, id, {
       customHeadersBehavior: {
         customHeaders: [
@@ -248,10 +272,7 @@ export class SiteStack extends cdk.Stack {
           override: true,
         },
         contentTypeOptions: { override: true },
-        frameOptions: {
-          frameOption: cloudfront.HeadersFrameOption.DENY,
-          override: true,
-        },
+        frameOptions: { frameOption: cloudfront.HeadersFrameOption.DENY, override: true },
         referrerPolicy: {
           referrerPolicy: cloudfront.HeadersReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN,
           override: true,

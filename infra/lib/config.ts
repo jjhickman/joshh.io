@@ -1,23 +1,31 @@
 import { z } from "zod";
 
-const DUMMY_ACCOUNT = "111111111111";
+// Synth and tests never contact AWS, so they run against a placeholder
+// account. A real deployment must supply the genuine account via
+// CDK_DEFAULT_ACCOUNT; getInfraConfig throws if it is missing then.
+const SYNTH_PLACEHOLDER_ACCOUNT = "111111111111";
 
-const accountSchema = z.string().regex(/^\d{12}$/, "must be a 12-digit AWS account ID");
-const githubOidcProviderSchema = z.union([
+const oidcProviderSetting = z.union([
   z.literal("create"),
   z.object({
     importArn: z
       .string()
-      .regex(/^arn:[^:]+:iam::\d{12}:oidc-provider\/token\.actions\.githubusercontent\.com$/),
+      .regex(
+        /^arn:[^:]+:iam::\d{12}:oidc-provider\/token\.actions\.githubusercontent\.com$/,
+        "must be the account's GitHub OIDC provider ARN",
+      ),
   }),
 ]);
 
 const environmentSchema = z.object({
-  CDK_DEFAULT_ACCOUNT: accountSchema.optional(),
+  CDK_DEFAULT_ACCOUNT: z
+    .string()
+    .regex(/^\d{12}$/, "must be a 12-digit AWS account ID")
+    .optional(),
   JOSHH_IO_CDK_CONTEXT: z.enum(["deploy", "synth", "test"]).default("deploy"),
 });
 
-export type GithubOidcProviderConfig = z.infer<typeof githubOidcProviderSchema>;
+export type GithubOidcProviderConfig = z.infer<typeof oidcProviderSetting>;
 
 export interface InfraConfig {
   readonly account: string;
@@ -38,7 +46,9 @@ export interface InfraConfigOverrides {
   readonly githubOidcProvider?: GithubOidcProviderConfig;
 }
 
-const explicitConfig = {
+// Everything below is deliberate, reviewed configuration — never derived at
+// runtime, so synthesis stays credential-free and deterministic.
+const constants = {
   region: "us-east-1",
   domain: "joshh.io",
   hostedZoneId: "Z09072841QGFCMDWIMTZ5",
@@ -46,8 +56,9 @@ const explicitConfig = {
   githubRepository: "joshh.io",
   deployBranch: "main",
   githubEnvironment: "production",
-  // Recorded during bootstrap 2026-07-19: account 580028686392 already has the
-  // GitHub OIDC provider, so JoshhIo-Ci imports it (IAM allows one per issuer).
+  // Recorded during bootstrap 2026-07-19: account 580028686392 already has
+  // the GitHub OIDC provider, and IAM allows one per issuer per account, so
+  // JoshhIo-Ci imports it rather than creating a duplicate.
   githubOidcProvider: {
     importArn:
       "arn:aws:iam::580028686392:oidc-provider/token.actions.githubusercontent.com",
@@ -59,19 +70,21 @@ export function getInfraConfig(overrides: InfraConfigOverrides = {}): InfraConfi
     CDK_DEFAULT_ACCOUNT: overrides.account ?? process.env.CDK_DEFAULT_ACCOUNT,
     JOSHH_IO_CDK_CONTEXT: overrides.context ?? process.env.JOSHH_IO_CDK_CONTEXT,
   });
-  const account = environment.CDK_DEFAULT_ACCOUNT ??
-    (environment.JOSHH_IO_CDK_CONTEXT === "deploy" ? undefined : DUMMY_ACCOUNT);
 
+  const context = environment.JOSHH_IO_CDK_CONTEXT;
+  const account =
+    environment.CDK_DEFAULT_ACCOUNT ??
+    (context === "deploy" ? undefined : SYNTH_PLACEHOLDER_ACCOUNT);
   if (!account) {
     throw new Error("CDK_DEFAULT_ACCOUNT is required for deployment");
   }
 
   return {
-    ...explicitConfig,
+    ...constants,
     account,
-    context: environment.JOSHH_IO_CDK_CONTEXT,
-    githubOidcProvider: githubOidcProviderSchema.parse(
-      overrides.githubOidcProvider ?? explicitConfig.githubOidcProvider,
+    context,
+    githubOidcProvider: oidcProviderSetting.parse(
+      overrides.githubOidcProvider ?? constants.githubOidcProvider,
     ),
   };
 }
