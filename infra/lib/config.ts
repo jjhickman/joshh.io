@@ -21,6 +21,7 @@ export type GithubOidcProviderConfig = z.infer<typeof githubOidcProviderSchema>;
 
 export interface InfraConfig {
   readonly account: string;
+  readonly context: "deploy" | "synth" | "test";
   readonly region: "us-east-1";
   readonly domain: "joshh.io";
   readonly hostedZoneId: "Z09072841QGFCMDWIMTZ5";
@@ -51,7 +52,7 @@ const explicitConfig = {
     importArn:
       "arn:aws:iam::580028686392:oidc-provider/token.actions.githubusercontent.com",
   },
-} as const satisfies Omit<InfraConfig, "account">;
+} as const satisfies Omit<InfraConfig, "account" | "context">;
 
 export function getInfraConfig(overrides: InfraConfigOverrides = {}): InfraConfig {
   const environment = environmentSchema.parse({
@@ -68,6 +69,7 @@ export function getInfraConfig(overrides: InfraConfigOverrides = {}): InfraConfi
   return {
     ...explicitConfig,
     account,
+    context: environment.JOSHH_IO_CDK_CONTEXT,
     githubOidcProvider: githubOidcProviderSchema.parse(
       overrides.githubOidcProvider ?? explicitConfig.githubOidcProvider,
     ),

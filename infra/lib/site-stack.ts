@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import * as cdk from "aws-cdk-lib";
 import * as acm from "aws-cdk-lib/aws-certificatemanager";
@@ -185,8 +186,18 @@ export class SiteStack extends cdk.Stack {
       });
     }
 
+    // Synth and tests must not require a frontend build; a real deploy must.
+    const distDir = fileURLToPath(new URL("../../dist", import.meta.url));
+    const hasDist = existsSync(distDir);
+    if (props.config.context === "deploy" && !hasDist) {
+      throw new Error("dist/ not found — run the frontend build before deploying JoshhIo-Site");
+    }
     new s3deploy.BucketDeployment(this, "DeploySite", {
-      sources: [s3deploy.Source.asset(fileURLToPath(new URL("../../dist", import.meta.url)))],
+      sources: [
+        hasDist
+          ? s3deploy.Source.asset(distDir)
+          : s3deploy.Source.data("placeholder.txt", "frontend build pending"),
+      ],
       destinationBucket: siteBucket,
       distribution,
       distributionPaths: ["/*"],
