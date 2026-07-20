@@ -1,7 +1,7 @@
-import concernsArtwork from "../assets/images/releases/placeholder-concerns.svg";
-import feathersArtwork from "../assets/images/releases/placeholder-feathers.svg";
-import partiallyBlindArtwork from "../assets/images/releases/placeholder-partially-blind.svg";
+import { releaseImage } from "./images";
+import { releasesSchema } from "./schemas";
 import type { AbsoluteUrl, Release } from "./types";
+import releasesJson from "./data/releases.json";
 
 export const spotifyEmbedUrl = (albumId: string): AbsoluteUrl =>
   `https://open.spotify.com/embed/album/${albumId}`;
@@ -9,47 +9,23 @@ export const spotifyEmbedUrl = (albumId: string): AbsoluteUrl =>
 export const spotifyAlbumUrl = (albumId: string): AbsoluteUrl =>
   `https://open.spotify.com/album/${albumId}`;
 
-export const releases = [
-  {
-    slug: "feathers",
-    title: "Feathers",
-    releaseDate: "2025-10-24", // PLACEHOLDER
-    spotifyAlbumId: "6UfhFkIHodlG0kNF8I1TXC",
+export const releases: Release[] = releasesSchema.parse(releasesJson).map((entry) => {
+  const release: Release = {
+    slug: entry.slug,
+    title: entry.title,
+    releaseDate: entry.releaseDate as Release["releaseDate"],
+    spotifyAlbumId: entry.spotifyAlbumId,
     artwork: {
-      src: feathersArtwork, // PLACEHOLDER
-      alt: "Abstract blue-black Feathers placeholder artwork", // PLACEHOLDER
-      width: 1200,
-      height: 1200,
+      src: releaseImage(entry.artwork.file),
+      alt: entry.artwork.alt,
+      width: entry.artwork.width,
+      height: entry.artwork.height,
     },
-    summary: "A patient surge of guitar, haze, and bright edges from IN CASE OF EMERGENCY.", // PLACEHOLDER
-    featured: true,
-  },
-  {
-    slug: "partially-blind",
-    title: "PARTIALLY BLIND",
-    releaseDate: "2024-06-14", // PLACEHOLDER
-    spotifyAlbumId: "2EWkRLlezZ5RuB5xw3Z2Bs",
-    artwork: {
-      src: partiallyBlindArtwork, // PLACEHOLDER
-      alt: "Angular blue-black PARTIALLY BLIND placeholder artwork", // PLACEHOLDER
-      width: 1200,
-      height: 1200,
-    },
-    summary: "A wide-screen passage between dream pop shimmer and post-rock weight.", // PLACEHOLDER
-  },
-  {
-    slug: "the-least-of-my-concerns",
-    title: "The Least of My Concerns",
-    releaseDate: "2022-09-02", // PLACEHOLDER
-    spotifyAlbumId: "2a2Dz8i6AayYmmNvKAokTX",
-    artwork: {
-      src: concernsArtwork, // PLACEHOLDER
-      alt: "Concentric blue-black The Least of My Concerns placeholder artwork", // PLACEHOLDER
-      width: 1200,
-      height: 1200,
-    },
-    summary: "An atmospheric early chapter built from tension, release, and melodic guitar.", // PLACEHOLDER
-  },
-] satisfies Release[];
+  };
+  if (entry.summary !== undefined) release.summary = entry.summary;
+  if (entry.links !== undefined) release.links = entry.links as NonNullable<Release["links"]>;
+  if (entry.featured !== undefined) release.featured = entry.featured;
+  return release;
+});
 
 export const featuredRelease = releases.find((release) => release.featured) ?? releases[0]!;

@@ -1,0 +1,49 @@
+[
+  {
+    "id": "harbor-room-2026",
+    "startAt": "2026-10-17T20:00:00-04:00",
+    "venue": "Harbor Room",
+    "city": "Boston",
+    "region": "MA",
+    "billing": ["IN CASE OF EMERGENCY", "Glass Static"],
+    "ticketUrl": "https://example.com/harbor-room",
+    "status": "scheduled"
+  },
+  {
+    "id": "northlight-hall-2026",
+    "startAt": "2026-12-05T19:30:00-05:00",
+    "venue": "Northlight Hall",
+    "city": "Cambridge",
+    "region": "MA",
+    "billing": ["IN CASE OF EMERGENCY", "Low Weather"],
+    "venueUrl": "https://example.com/northlight-hall",
+    "status": "scheduled"
+  },
+  {
+    "id": "signal-house-2026",
+    "startAt": "2026-06-12T20:30:00-04:00",
+    "venue": "Signal House",
+    "city": "Somerville",
+    "region": "MA",
+    "billing": ["IN CASE OF EMERGENCY", "Soft Divide"],
+    "status": "scheduled"
+  },
+  {
+    "id": "the-foundry-2025",
+    "startAt": "2025-11-08T21:00:00-05:00",
+    "venue": "The Foundry",
+    "city": "Allston",
+    "region": "MA",
+    "billing": ["IN CASE OF EMERGENCY", "Arc Lamp"],
+    "status": "scheduled"
+  },
+  {
+    "id": "meridian-stage-2025",
+    "startAt": "2025-03-22T20:00:00-04:00",
+    "venue": "Meridian Stage",
+    "city": "Cambridge",
+    "region": "MA",
+    "billing": ["IN CASE OF EMERGENCY", "Night Geometry"],
+    "status": "scheduled"
+  }
+]

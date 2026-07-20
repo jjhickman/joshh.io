@@ -1,59 +1,22 @@
+import { showsSchema } from "./schemas";
 import type { Show } from "./types";
+import showsJson from "./data/shows.json";
 
-export const shows = [
-  // PLACEHOLDER
-  {
-    id: "harbor-room-2026",
-    startAt: "2026-10-17T20:00:00-04:00", // PLACEHOLDER
-    venue: "Harbor Room", // PLACEHOLDER
-    city: "Boston", // PLACEHOLDER
-    region: "MA", // PLACEHOLDER
-    billing: ["IN CASE OF EMERGENCY", "Glass Static"], // PLACEHOLDER
-    ticketUrl: "https://example.com/harbor-room", // PLACEHOLDER
-    status: "scheduled",
-  },
-  // PLACEHOLDER
-  {
-    id: "northlight-hall-2026",
-    startAt: "2026-12-05T19:30:00-05:00", // PLACEHOLDER
-    venue: "Northlight Hall", // PLACEHOLDER
-    city: "Cambridge", // PLACEHOLDER
-    region: "MA", // PLACEHOLDER
-    billing: ["IN CASE OF EMERGENCY", "Low Weather"], // PLACEHOLDER
-    venueUrl: "https://example.com/northlight-hall", // PLACEHOLDER
-    status: "scheduled",
-  },
-  // PLACEHOLDER
-  {
-    id: "signal-house-2026",
-    startAt: "2026-06-12T20:30:00-04:00", // PLACEHOLDER
-    venue: "Signal House", // PLACEHOLDER
-    city: "Somerville", // PLACEHOLDER
-    region: "MA", // PLACEHOLDER
-    billing: ["IN CASE OF EMERGENCY", "Soft Divide"], // PLACEHOLDER
-    status: "scheduled",
-  },
-  // PLACEHOLDER
-  {
-    id: "the-foundry-2025",
-    startAt: "2025-11-08T21:00:00-05:00", // PLACEHOLDER
-    venue: "The Foundry", // PLACEHOLDER
-    city: "Allston", // PLACEHOLDER
-    region: "MA", // PLACEHOLDER
-    billing: ["IN CASE OF EMERGENCY", "Arc Lamp"], // PLACEHOLDER
-    status: "scheduled",
-  },
-  // PLACEHOLDER
-  {
-    id: "meridian-stage-2025",
-    startAt: "2025-03-22T20:00:00-04:00", // PLACEHOLDER
-    venue: "Meridian Stage", // PLACEHOLDER
-    city: "Cambridge", // PLACEHOLDER
-    region: "MA", // PLACEHOLDER
-    billing: ["IN CASE OF EMERGENCY", "Night Geometry"], // PLACEHOLDER
-    status: "scheduled",
-  },
-] satisfies Show[];
+export const shows: Show[] = showsSchema.parse(showsJson).map((entry) => {
+  const show: Show = {
+    id: entry.id,
+    startAt: entry.startAt,
+    venue: entry.venue,
+    city: entry.city,
+    region: entry.region,
+    status: entry.status,
+  };
+  if (entry.endAt !== undefined) show.endAt = entry.endAt;
+  if (entry.billing !== undefined) show.billing = entry.billing;
+  if (entry.ticketUrl !== undefined) show.ticketUrl = entry.ticketUrl as NonNullable<Show["ticketUrl"]>;
+  if (entry.venueUrl !== undefined) show.venueUrl = entry.venueUrl as NonNullable<Show["venueUrl"]>;
+  return show;
+});
 
 export function partitionShows(records: readonly Show[], now: Date): {
   upcoming: Show[];

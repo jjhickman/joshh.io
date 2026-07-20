@@ -1,0 +1,27 @@
+[
+  {
+    "id": "live-session-one",
+    "title": "Live Session — Film One",
+    "youtubeId": "PLACEHOLDER_1",
+    "publishedAt": "2026-02-20",
+    "poster": {
+      "file": "placeholder-video-1.svg",
+      "alt": "Shadowed guitarist in teal stage light",
+      "width": 1600,
+      "height": 900
+    },
+    "featured": true
+  },
+  {
+    "id": "live-session-two",
+    "title": "Live Session — Film Two",
+    "youtubeId": "PLACEHOLDER_2",
+    "publishedAt": "2025-08-15",
+    "poster": {
+      "file": "placeholder-video-2.svg",
+      "alt": "Abstract stage beams crossing a dark room",
+      "width": 1600,
+      "height": 900
+    }
+  }
+]

@@ -31,7 +31,7 @@ const CONTENT_SECURITY_POLICY = [
   "font-src 'self'",
   "img-src 'self' data:",
   "frame-src https://open.spotify.com https://www.youtube-nocookie.com",
-  "connect-src 'self'",
+  "connect-src 'self' https://api.joshh.io https://joshh-io-admin.auth.us-east-1.amazoncognito.com",
   "upgrade-insecure-requests",
 ].join("; ");
 

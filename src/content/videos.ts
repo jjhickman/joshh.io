@@ -1,35 +1,25 @@
-import videoPosterOne from "../assets/images/videos/placeholder-video-1.svg";
-import videoPosterTwo from "../assets/images/videos/placeholder-video-2.svg";
+import { videoImage } from "./images";
+import { videosSchema } from "./schemas";
 import type { Video } from "./types";
+import videosJson from "./data/videos.json";
 
-export const videos = [
-  // PLACEHOLDER
-  {
-    id: "live-session-one",
-    title: "Live Session — Film One", // PLACEHOLDER
-    youtubeId: "PLACEHOLDER_1",
-    publishedAt: "2026-02-20", // PLACEHOLDER
+export const videos: Video[] = videosSchema.parse(videosJson).map((entry) => {
+  const video: Video = {
+    id: entry.id,
+    title: entry.title,
+    youtubeId: entry.youtubeId,
     poster: {
-      src: videoPosterOne, // PLACEHOLDER
-      alt: "Shadowed guitarist in teal stage light", // PLACEHOLDER
-      width: 1600,
-      height: 900,
+      src: videoImage(entry.poster.file),
+      alt: entry.poster.alt,
+      width: entry.poster.width,
+      height: entry.poster.height,
     },
-    featured: true,
-  },
-  // PLACEHOLDER
-  {
-    id: "live-session-two",
-    title: "Live Session — Film Two", // PLACEHOLDER
-    youtubeId: "PLACEHOLDER_2",
-    publishedAt: "2025-08-15", // PLACEHOLDER
-    poster: {
-      src: videoPosterTwo, // PLACEHOLDER
-      alt: "Abstract stage beams crossing a dark room", // PLACEHOLDER
-      width: 1600,
-      height: 900,
-    },
-  },
-] satisfies Video[];
+  };
+  if (entry.publishedAt !== undefined) {
+    video.publishedAt = entry.publishedAt as NonNullable<Video["publishedAt"]>;
+  }
+  if (entry.featured !== undefined) video.featured = entry.featured;
+  return video;
+});
 
 export const featuredVideo = videos.find((video) => video.featured) ?? videos[0]!;

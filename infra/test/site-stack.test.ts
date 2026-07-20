@@ -8,6 +8,8 @@ import { SiteStack } from "../lib/site-stack.js";
 
 const APPROVED_FRAME_SOURCES =
   "frame-src https://open.spotify.com https://www.youtube-nocookie.com";
+const APPROVED_CONNECT_SOURCES =
+  "connect-src 'self' https://api.joshh.io https://joshh-io-admin.auth.us-east-1.amazoncognito.com";
 
 // aws-cdk-lib/assertions types raw Properties as `any`; these shapes cover
 // exactly the fragments the deep assertions below inspect.
@@ -164,6 +166,26 @@ describe("JoshhIo-Site", () => {
         Preload: true,
       });
       expect(security.FrameOptions.FrameOption).toBe("DENY");
+    }
+  });
+
+  it("allows exactly the admin API and Cognito hosted UI as connect-src", () => {
+    const policies = Object.values(
+      template.findResources("AWS::CloudFront::ResponseHeadersPolicy"),
+    ).map(
+      (resource) =>
+        (resource.Properties as { ResponseHeadersPolicyConfig: HeadersPolicyShape })
+          .ResponseHeadersPolicyConfig,
+    );
+    expect(policies).toHaveLength(2);
+    for (const policy of policies) {
+      const csp = policy.SecurityHeadersConfig.ContentSecurityPolicy.ContentSecurityPolicy;
+      // Exact directive: 'self', the admin API, and the Cognito hosted UI —
+      // and no other connect-src source may creep in.
+      const connectDirective = csp
+        .split("; ")
+        .find((directive) => directive.startsWith("connect-src"));
+      expect(connectDirective).toBe(APPROVED_CONNECT_SOURCES);
     }
   });
 

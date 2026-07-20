@@ -1,0 +1,42 @@
+[
+  {
+    "slug": "feathers",
+    "title": "Feathers",
+    "releaseDate": "2025-10-24",
+    "spotifyAlbumId": "6UfhFkIHodlG0kNF8I1TXC",
+    "artwork": {
+      "file": "placeholder-feathers.svg",
+      "alt": "Abstract blue-black Feathers placeholder artwork",
+      "width": 1200,
+      "height": 1200
+    },
+    "summary": "A patient surge of guitar, haze, and bright edges from IN CASE OF EMERGENCY.",
+    "featured": true
+  },
+  {
+    "slug": "partially-blind",
+    "title": "PARTIALLY BLIND",
+    "releaseDate": "2024-06-14",
+    "spotifyAlbumId": "2EWkRLlezZ5RuB5xw3Z2Bs",
+    "artwork": {
+      "file": "placeholder-partially-blind.svg",
+      "alt": "Angular blue-black PARTIALLY BLIND placeholder artwork",
+      "width": 1200,
+      "height": 1200
+    },
+    "summary": "A wide-screen passage between dream pop shimmer and post-rock weight."
+  },
+  {
+    "slug": "the-least-of-my-concerns",
+    "title": "The Least of My Concerns",
+    "releaseDate": "2022-09-02",
+    "spotifyAlbumId": "2a2Dz8i6AayYmmNvKAokTX",
+    "artwork": {
+      "file": "placeholder-concerns.svg",
+      "alt": "Concentric blue-black The Least of My Concerns placeholder artwork",
+      "width": 1200,
+      "height": 1200
+    },
+    "summary": "An atmospheric early chapter built from tension, release, and melodic guitar."
+  }
+]

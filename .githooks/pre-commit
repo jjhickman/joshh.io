@@ -7,7 +7,15 @@ if [ -z "$staged_files" ]; then
 fi
 
 gitleaks protect --staged --config .gitleaks.toml --no-banner --redact
-lint_files=$(printf '%s\n' "$staged_files" | sed -n '/\.[cm]*[jt]sx*$/p')
+# The root eslint config deliberately ignores infra/ (that package lints
+# itself via its own check pipeline), so staged infra files are excluded
+# here rather than surfacing as "file ignored" warnings that trip
+# --max-warnings 0.
+lint_files=$(printf '%s\n' "$staged_files" | sed -n '/\.[cm]*[jt]sx*$/p' | grep -v '^infra/' || true)
 if [ -n "$lint_files" ]; then
   printf '%s\n' "$lint_files" | xargs npm exec -- eslint --max-warnings 0
+fi
+infra_lint_files=$(printf '%s\n' "$staged_files" | sed -n '/\.[cm]*[jt]sx*$/p' | grep '^infra/' || true)
+if [ -n "$infra_lint_files" ]; then
+  npm --prefix infra run lint
 fi

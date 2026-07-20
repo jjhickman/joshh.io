@@ -17,6 +17,8 @@ const routes: RouteObject[] = [
       { path: "video", lazy: async () => ({ Component: (await import("../pages/VideoPage")).default }) },
       { path: "photos", lazy: async () => ({ Component: (await import("../pages/PhotosPage")).default }) },
       { path: "tech", lazy: async () => ({ Component: (await import("../pages/TechPage")).default }) },
+      // Hidden authenticated admin — intentionally absent from routePaths, nav, and the sitemap.
+      { path: "admin", lazy: async () => ({ Component: (await import("../pages/admin/AdminPage")).default }) },
       { path: "*", lazy: async () => ({ Component: (await import("../pages/NotFoundPage")).default }) },
     ],
   },

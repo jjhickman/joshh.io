@@ -18,6 +18,7 @@
   "include": [
     "bin/**/*.ts",
     "lib/**/*.ts",
+    "lambda/**/*.ts",
     "test/**/*.ts",
     "eslint.config.js",
     "vitest.config.ts"
